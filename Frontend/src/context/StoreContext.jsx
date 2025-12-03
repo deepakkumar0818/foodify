@@ -13,8 +13,61 @@ const StoreContextProvider = ({ children }) => {
 const[cartItems,setCartItem]= useState({});
 const [token, setToken] = useState("");
 const [food_list, setFoodList] = useState([]);
+const [favourites, setFavourites] = useState([]);
+const [userInfo, setUserInfo] = useState(null);
 
 const url = 'http://localhost:4000';
+
+// Fetch user profile
+const fetchUserProfile = async (token) => {
+  if (!token) return;
+  try {
+    const response = await axios.get(`${url}/api/user/profile`, { headers: { token } });
+    if (response.data.success) {
+      setUserInfo(response.data.data);
+    }
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+  }
+};
+
+// Load favourites from localStorage on init
+const loadFavourites = () => {
+  const savedFavourites = localStorage.getItem('favourites');
+  if (savedFavourites) {
+    setFavourites(JSON.parse(savedFavourites));
+  }
+};
+
+// Add to favourites
+const addToFavourites = (itemId) => {
+  if (!favourites.includes(itemId)) {
+    const newFavourites = [...favourites, itemId];
+    setFavourites(newFavourites);
+    localStorage.setItem('favourites', JSON.stringify(newFavourites));
+  }
+};
+
+// Remove from favourites
+const removeFromFavourites = (itemId) => {
+  const newFavourites = favourites.filter(id => id !== itemId);
+  setFavourites(newFavourites);
+  localStorage.setItem('favourites', JSON.stringify(newFavourites));
+};
+
+// Check if item is favourite
+const isFavourite = (itemId) => {
+  return favourites.includes(itemId);
+};
+
+// Toggle favourite
+const toggleFavourite = (itemId) => {
+  if (isFavourite(itemId)) {
+    removeFromFavourites(itemId);
+  } else {
+    addToFavourites(itemId);
+  }
+};
 
 
 const addToCart = async(itemId) => {
@@ -55,10 +108,9 @@ return totalAmount;
 }
 
 const fetchFoodList = async ()=>{
+  // Fetch all items - frontend will handle display of unavailable items
   const response = await axios.get(`${url}/api/food/list`)
-
-setFoodList(response.data.data)  
-
+  setFoodList(response.data.data)  
 }
 
 
@@ -79,9 +131,11 @@ useEffect(() => {
  
   async function loadData(){
     await fetchFoodList()
+    loadFavourites();
     if (token) {
       setToken(token);
       await loadCartData(localStorage.getItem('token'));
+      await fetchUserProfile(localStorage.getItem('token'));
     }
   }
   loadData()
@@ -90,6 +144,9 @@ useEffect(() => {
 useEffect(() => {
   if (token) {
     loadCartData(token);
+    fetchUserProfile(token);
+  } else {
+    setUserInfo(null);
   }
 }, [token]);
 
@@ -97,7 +154,6 @@ useEffect(() => {
 
 
   const contextValue = {
-  
     addToCart,
     removeFromCart,
     setCartItem,
@@ -108,7 +164,14 @@ useEffect(() => {
     setToken,
     food_list,
     setFoodList,
-    fetchFoodList
+    fetchFoodList,
+    favourites,
+    addToFavourites,
+    removeFromFavourites,
+    isFavourite,
+    toggleFavourite,
+    userInfo,
+    setUserInfo
   };
 
   return (

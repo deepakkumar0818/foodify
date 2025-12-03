@@ -56,8 +56,55 @@ const removeFood = async (req, res) => {
     }
 }
 
+// Update food status (available, unavailable, out_of_stock)
+const updateFoodStatus = async (req, res) => {
+    try {
+        const { id, status } = req.body;
+        
+        if (!id || !status) {
+            return res.json({ success: false, message: "ID and status are required" });
+        }
 
+        const validStatuses = ['available', 'unavailable', 'out_of_stock'];
+        if (!validStatuses.includes(status)) {
+            return res.json({ success: false, message: "Invalid status" });
+        }
 
+        const food = await foodModel.findByIdAndUpdate(
+            id, 
+            { status: status },
+            { new: true }
+        );
 
+        if (!food) {
+            return res.json({ success: false, message: "Food item not found" });
+        }
 
-export { addFood, listFood, removeFood };
+        console.log(`Food "${food.name}" status updated to: ${status}`);
+        res.json({ success: true, message: "Status updated successfully", data: food });
+        
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+}
+
+// Get available food only (for user frontend)
+const listAvailableFood = async (req, res) => {
+    try {
+        // Include items that are 'available' OR don't have a status field (legacy items)
+        const foods = await foodModel.find({
+            $or: [
+                { status: 'available' },
+                { status: { $exists: false } },
+                { status: null }
+            ]
+        });
+        res.json({ success: true, data: foods });
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+}
+
+export { addFood, listFood, removeFood, updateFoodStatus, listAvailableFood };

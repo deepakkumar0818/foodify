@@ -63,13 +63,65 @@ const placeOrder = async (req, res) => {
 
 }
 
+// Place order with Cash on Delivery
+const placeOrderCOD = async (req, res) => {
+    console.log("=== COD Order Request ===");
+    console.log("User ID:", req.body.userId);
+    console.log("Items:", req.body.items?.length, "items");
+    console.log("Amount:", req.body.amount);
+    console.log("Address:", req.body.address);
+    
+    try {
+        // Validate required fields
+        if (!req.body.userId) {
+            return res.json({ success: false, message: "User ID is required" });
+        }
+        if (!req.body.items || req.body.items.length === 0) {
+            return res.json({ success: false, message: "Order items are required" });
+        }
+        if (!req.body.amount) {
+            return res.json({ success: false, message: "Order amount is required" });
+        }
+        if (!req.body.address) {
+            return res.json({ success: false, message: "Delivery address is required" });
+        }
+
+        const newOrder = new orderModel({
+            userId: req.body.userId,
+            items: req.body.items,
+            amount: req.body.amount,
+            address: req.body.address,
+            payment: false, // COD - payment will be collected on delivery
+            status: "Food Processing",
+            paymentMethod: "COD",
+            date: new Date()
+        });
+        
+        const savedOrder = await newOrder.save();
+        console.log("Order saved successfully! ID:", savedOrder._id);
+        
+        // Clear user's cart
+        await userModel.findByIdAndUpdate(req.body.userId, { cartData: {} });
+        console.log("Cart cleared for user:", req.body.userId);
+        
+        res.json({
+            success: true, 
+            message: "Order placed successfully! Pay on delivery.",
+            orderId: savedOrder._id
+        });
+    } catch (error) {
+        console.error("COD Order Error:", error);
+        res.json({ success: false, message: error.message || "Failed to place order" });
+    }
+}
+
 const verifyOrder = async (req, res) => {
     const {orderId, success} = req.body;
   try {
   
 
     if (success == "true") {
-     await orderModel.findByIdAndUpdate(orderId,{payment:true, status: "placed"});
+     await orderModel.findByIdAndUpdate(orderId,{payment:true, status: "Food Processing"});
         res.json({success: true, message: "Paid"});
     } else {
         const order = await orderModel.findByIdAndDelete(orderId);
@@ -110,20 +162,33 @@ const listOrder = async (req, res) => {
 
 const updateStatus = async (req, res) => {
   try {
-   
-   await orderModel.findByIdAndUpdate(req.body.orderId, {status: req.body.
-        status});
- 
-  
-    res.json({success: true, message: "Status updated"});
-
+    const { orderId, status } = req.body;
+    
+    // Get the order to check payment method
+    const order = await orderModel.findById(orderId);
+    
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+    
+    // Update object
+    let updateData = { status: status };
+    
+    // For COD orders, mark as paid when delivered
+    if (order.paymentMethod === 'COD' && status === 'Delivered') {
+      updateData.payment = true;
+      console.log("COD Order delivered - marking as paid:", orderId);
+    }
+    
+    await orderModel.findByIdAndUpdate(orderId, updateData);
+    
+    res.json({ success: true, message: "Status updated" });
     
   } catch (error) {
     console.log(error);
-    res.json({success: false, message: error.message});
-    
+    res.json({ success: false, message: error.message });
   }
 }
 
 
-export {placeOrder, verifyOrder, userOrder, listOrder, updateStatus};
+export {placeOrder, placeOrderCOD, verifyOrder, userOrder, listOrder, updateStatus};

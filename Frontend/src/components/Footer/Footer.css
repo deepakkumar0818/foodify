@@ -25,6 +25,12 @@
     gap: 20px;
 }
 
+.footer-logo {
+    height: 45px;
+    width: auto;
+    object-fit: contain;
+}
+
 .footer-content-left li,
 .footer-content-center li,
 .footer-content-right li{

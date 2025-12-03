@@ -30,6 +30,18 @@ const orderSchema = new mongoose.Schema({
     payment:{
         type:Boolean,
         default: false 
+    },
+    paymentMethod:{
+        type: String,
+        default: "Online"
+    },
+    paymentId:{
+        type: String,
+        default: ""
+    },
+    razorpayOrderId:{
+        type: String,
+        default: ""
     }
     })
 
